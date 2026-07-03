@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Bomber Master</title>
+    
+    <!-- Firebase (CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a1a;--bg2:#12122a;--card:#1a1a3e;--accent:#00ff88;--accent-glow:rgba(0,255,136,.15);--danger:#ff3366;--warning:#ffaa33;--text:#e0e0ff;--dim:#8888aa;--border:#2a2a5a}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        input,select,button{font-family:inherit}
+        
+        .stars{position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 50% 50%,transparent 0%,#0a0a1a 100%);z-index:-1}
+        .stars::after{content:'';position:absolute;width:2px;height:2px;background:#fff;border-radius:50%;box-shadow:100px 200px 0 rgba(255,255,255,.3),300px 400px 0 rgba(255,255,255,.2),500px 100px 0 rgba(255,255,255,.4),700px 600px 0 rgba(255,255,255,.3);animation:twinkle 3s ease-in-out infinite alternate}
+        @keyframes twinkle{0%{opacity:.4}100%{opacity:1}}
+        
+        .container{display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+        .auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:slideUp .5s ease;text-align:center}
+        @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        .logo-icon{font-size:64px;margin-bottom:10px}
+        .logo h1{font-size:32px;font-weight:800;margin-bottom:4px}
+        .logo h1 span{color:var(--accent)}
+        .subtitle{color:var(--dim);font-size:14px;margin-bottom:24px}
+        .btn-google{background:#fff;color:#333;border:none;border-radius:12px;padding:14px 24px;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;width:100%;transition:.3s}
+        .btn-google:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(255,255,255,.15)}
+        .divider{display:flex;align-items:center;gap:16px;margin:20px 0;color:var(--dim);font-size:13px}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+        .form-group{display:flex;flex-direction:column;gap:12px}
+        .form-group input{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;color:var(--text);font-size:15px;outline:none;transition:.3s}
+        .form-group input:focus{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+        .btn-primary{background:linear-gradient(135deg,var(--accent),#00cc6a);color:#0a0a1a;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;transition:.3s;text-transform:uppercase;letter-spacing:1px}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px var(--accent-glow)}
+        .error-msg{color:var(--danger);font-size:14px;text-align:center;min-height:20px;margin-top:8px}
+        
+        .dash{display:none;min-height:100vh}
+        .dash.active{display:flex}
+        .sidebar{width:250px;background:var(--card);border-right:1px solid var(--border);padding:24px;display:flex;flex-direction:column;position:fixed;height:100vh;z-index:10}
+        .sidebar h2{font-size:20px;margin-bottom:24px}
+        .sidebar h2 span{color:var(--accent)}
+        .sidebar .user-card{text-align:center;padding:16px;background:var(--bg2);border-radius:12px;margin-bottom:16px}
+        .sidebar .user-card img{width:48px;height:48px;border-radius:50%;margin-bottom:8px;border:2px solid var(--accent)}
+        .sidebar .user-card .name{font-weight:600;font-size:14px}
+        .sidebar .user-card .email{color:var(--dim);font-size:12px;word-break:break-all}
+        .sidebar .balance-card{background:linear-gradient(135deg,#1a1a4e,#2a2a6e);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px}
+        .sidebar .balance-card .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:4px}
+        .sidebar .balance-card .amount{font-size:32px;font-weight:800;color:var(--accent)}
+        .sidebar .balance-card .package{font-size:12px;color:var(--warning);margin-top:4px}
+        .sidebar nav{display:flex;flex-direction:column;gap:4px;flex:1}
+        .sidebar nav a{padding:12px 16px;border-radius:10px;color:var(--dim);text-decoration:none;transition:.3s;font-weight:500;cursor:pointer}
+        .sidebar nav a:hover,.sidebar nav a.active{background:var(--accent-glow);color:var(--accent)}
+        .sidebar .btn-logout{background:transparent;border:1px solid var(--danger);color:var(--danger);padding:10px;border-radius:8px;cursor:pointer;transition:.3s;font-weight:600;margin-top:12px;width:100%}
+        .sidebar .btn-logout:hover{background:var(--danger);color:#fff}
+        
+        .main{margin-left:250px;flex:1;padding:30px 40px}
+        .tab{display:none;animation:fadeIn .3s}
+        .tab.active{display:block}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        
+        .attack-panel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:30px;margin-top:20px}
+        .input-group{margin-bottom:16px}
+        .input-group label{display:block;margin-bottom:6px;font-size:14px;color:var(--dim);font-weight:500}
+        .input-group input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;transition:.3s}
+        .input-group input:focus{border-color:var(--accent)}
+        .input-row{display:flex;gap:16px}
+        .input-row .half{flex:1}
+        .btn-launch{background:linear-gradient(135deg,var(--accent),#00cc6a);color:#0a0a1a;border:none;border-radius:12px;padding:16px;font-size:18px;font-weight:700;cursor:pointer;transition:.3s;width:100%;text-transform:uppercase;letter-spacing:2px;margin-top:8px}
+        .btn-launch:hover{transform:translateY(-2px);box-shadow:0 10px 40px var(--accent-glow)}
+        .btn-launch:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .status-box{margin-top:16px;padding:12px;border-radius:8px;text-align:center;font-weight:600;font-size:15px;min-height:44px}
+        
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+        .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;transition:.3s}
+        .stat-card:hover{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+        .stat-label{display:block;font-size:12px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+        .stat-value{font-size:36px;font-weight:800;color:var(--accent)}
+        
+        .history-table{width:100%;border-collapse:collapse;margin-top:16px;background:var(--card);border-radius:12px;overflow:hidden}
+        .history-table th{background:var(--bg2);padding:12px 16px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border)}
+        .history-table td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:14px}
+        .history-table tr:hover{background:rgba(0,255,136,.03)}
+        
+        .badge-success,.badge-completed{color:var(--accent);font-weight:600}
+        .badge-danger,.badge-failed{color:var(--danger);font-weight:600}
+        .badge-running{color:var(--warning);font-weight:600}
+        .badge-stopped{color:var(--dim);font-weight:600}
+        
+        .shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+        .shop-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;transition:.3s;position:relative}
+        .shop-card:hover{border-color:var(--accent);transform:translateY(-4px);box-shadow:0 10px 30px var(--accent-glow)}
+        .shop-card.featured{border-color:var(--warning)}
+        .shop-card.featured::before{content:'🔥 BEST SELLER';position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--warning);color:#0a0a1a;font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:1px;white-space:nowrap}
+        .shop-card .price{font-size:36px;font-weight:800;color:var(--accent);margin:12px 0}
+        .shop-card .price small{font-size:14px;color:var(--dim)}
+        .shop-card .sms-count{font-size:28px;font-weight:700;color:var(--text);margin:8px 0}
+        .shop-card .features{list-style:none;margin:12px 0;font-size:13px;color:var(--dim);text-align:left;padding:0 8px}
+        .shop-card .features li{margin:6px 0}
+        .shop-card .features li::before{content:'✓ ';color:var(--accent)}
+        
+        .profile-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:30px;margin-top:16px}
+        .profile-card h3{font-size:22px;margin-bottom:16px}
+        .profile-card p{margin-bottom:8px;font-size:14px}
+        .profile-card .label{color:var(--dim)}
+        .profile-card .value{color:var(--text);font-weight:600}
+        .profile-card .accent{color:var(--accent)}
+        
+        @media(max-width:768px){
+            .sidebar{width:100%;height:auto;position:relative;padding:16px}
+            .main{margin-left:0;padding:20px}
+            .input-row{flex-direction:column}
+            .stats-grid{grid-template-columns:1fr 1fr}
+            .shop-grid{grid-template-columns:1fr}
+        }
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:var(--bg)}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    </style>
+</head>
+<body>
+<div class="stars"></div>
+
+<!-- ===== AUTH VIEW ===== -->
+<div class="container" id="authView">
+    <div class="auth-card">
+        <div class="logo-icon">📡</div>
+        <div class="logo"><h1>SMS<span>Bomber</span></h1></div>
+        <p class="subtitle">Advanced SMS Stress Testing Engine</p>
+        
+        <button class="btn-google" onclick="loginWithGoogle()">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.54 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.99 23.99 0 0 0 0 24c0 3.77.87 7.35 2.56 10.56l7.98-5.97z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.97C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+            Sign in with Google
+        </button>
+        
+        <div class="divider">or sign in with email</div>
+        
+        <div class="form-group">
+            <input type="email" id="authEmail" placeholder="Email address" autocomplete="email">
+            <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')emailLogin()">
+            <button class="btn-primary" onclick="emailLogin()">Sign In / Sign Up</button>
+        </div>
+        <div class="error-msg" id="authError"></div>
+        <div style="margin-top:20px;padding:12px;background:rgba(0,255,136,.05);border-radius:10px;border:1px solid rgba(0,255,136,.2)">
+            <p style="color:var(--dim);font-size:13px">🎁 <strong style="color:var(--accent)">Free Trial:</strong> 10 SMS credits</p>
+        </div>
+    </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="dash" id="dashView">
+    <aside class="sidebar">
+        <h2>📡 <span>SMS</span>Bomber</h2>
+        <div class="user-card" id="userCard">
+            <img id="userPhoto" src="" alt="">
+            <div class="name" id="userName">User</div>
+            <div class="email" id="userEmail">email@example.com</div>
+        </div>
+        <div class="balance-card">
+            <div class="label">SMS Balance</div>
+            <div class="amount" id="smsBalance">0</div>
+            <div class="package" id="userPackage">FREE TRIAL</div>
+        </div>
+        <nav>
+            <a class="active" onclick="switchTab('attack',this)">⚡ Launch Attack</a>
+            <a onclick="switchTab('shop',this)">🛒 SMS Packages</a>
+            <a onclick="switchTab('history',this)">📊 History</a>
+            <a onclick="switchTab('profile',this)">👤 Profile</a>
+        </nav>
+        <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+    </aside>
+
+    <main class="main">
+        <!-- Attack Tab -->
+        <div class="tab active" id="tab-attack">
+            <h1>⚡ Launch SMS Stress Test</h1>
+            <div class="attack-panel">
+                <div class="input-group">
+                    <label>Target Number (with country code):</label>
+                    <input type="text" id="targetNumber" placeholder="+1234567890">
+                </div>
+                <div class="input-group">
+                    <label>Message (optional):</label>
+                    <input type="text" id="message" placeholder="OTP: Your verification code is 123456">
+                </div>
+                <div class="input-row">
+                    <div class="half input-group">
+                        <label>Threads:</label>
+                        <input type="number" id="threads" value="10" min="1" max="50">
+                    </div>
+                    <div class="half input-group">
+                        <label>Duration (sec):</label>
+                        <input type="number" id="duration" value="30" min="1" max="120">
+                    </div>
+                </div>
+                <p style="color:var(--dim);font-size:13px;margin:8px 0">
+                    💡 Balance: <strong id="balanceDisplay" style="color:var(--accent)">0</strong> SMS credits
+                </p>
+                <button class="btn-launch" id="launchBtn" onclick="launchAttack()">🚀 LAUNCH ATTACK</button>
+                <div class="status-box" id="attackStatus">Ready</div>
+            </div>
+            <div class="stats-grid" id="liveStats" style="display:none">
+                <div class="stat-card"><span class="stat-label">Sent</span><span class="stat-value" id="statSent">0</span></div>
+                <div class="stat-card"><span class="stat-label">Failed</span><span class="stat-value" id="statFailed">0</span></div>
+                <div class="stat-card"><span class="stat-label">Total</span><span class="stat-value" id="statTotal">0</span></div>
+                <div class="stat-card"><span class="stat-label">Rate</span><span class="stat-value" id="statRate">0/s</span></div>
+            </div>
+        </div>
+
+        <!-- Shop Tab -->
+        <div class="tab" id="tab-shop">
+            <h1>🛒 SMS Packages</h1>
+            <p style="color:var(--dim);margin:8px 0">Purchase SMS credits to continue stress testing</p>
+            <div class="shop-grid" id="packageGrid">
+                <div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:40px">Loading...</div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab" id="tab-history">
+            <h1>📊 Attack History</h1>
+            <table class="history-table">
+                <thead><tr><th>Target</th><th>Sent</th><th>Failed</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody id="historyBody"><tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">Loading...</td></tr></tbody>
+            </table>
+        </div>
+
+        <!-- Profile Tab -->
+        <div class="tab" id="tab-profile">
+            <h1>👤 Profile & Statistics</h1>
+            <div class="profile-card" id="profileContent">
+                <p style="color:var(--dim)">Loading...</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+// ================================================================
+// 🔥 FIREBASE CONFIG — EDIT WITH YOUR FIREBASE PROJECT
+// ================================================================
+const firebaseConfig = {
+    apiKey: "AIzaSyCgcjKv-WESWYsv-7J9EKCj35wJyjhrg-o",
+    authDomain: "sms-bomber-niamul.firebaseapp.com",
+    projectId: "sms-bomber-niamul",
+    storageBucket: "sms-bomber-niamul.firebasestorage.app",
+    messagingSenderId: "491133673869",
+    appId: "1:491133673869:web:121c128c4e5b873d98ddc4"
+};
+
+// ================================================================
+// INIT
+// ================================================================
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUser = null;
+let currentUserDoc = null;
+let currentUserId = null;
+let currentAttackId = null;
+let pollInterval = null;
+
+// ================================================================
+// AUTH
+// ================================================================
+
+function loginWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(err => {
+        document.getElementById('authError').textContent = err.message;
+    });
+}
+
+function emailLogin() {
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errEl = document.getElementById('authError');
+    
+    if (!email || !password) { errEl.textContent = 'Email and password required'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password min 6 characters'; return; }
+    
+    errEl.textContent = 'Signing in...';
+    
+    auth.signInWithEmailAndPassword(email, password)
+        .catch(err => {
+            if (err.code === 'auth/user-not-found') {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .catch(e => { errEl.textContent = 'Error: ' + e.message; });
+            } else {
+                errEl.textContent = err.message;
+            }
+        });
+}
+
+auth.onAuthStateChanged(async (firebaseUser) => {
+    if (firebaseUser) {
+        const email = firebaseUser.email;
+        
+        // Admin redirect check
+        if (email === 'niyamulislam072@gmail.com') {
+            window.location.href = '/admin.html';
+            return;
+        }
+        
+        // Find or create user in Firestore
+        const usersRef = db.collection('users');
+        const snap = await usersRef.where('firebaseUid', '==', firebaseUser.uid).get();
+        
+        if (snap.empty) {
+            // New user — grant free trial
+            const newUser = {
+                firebaseUid: firebaseUser.uid,
+                email: email,
+                username: firebaseUser.displayName || email.split('@')[0] || 'User',
+                photoURL: firebaseUser.photoURL || '',
+                role: 'user',
+                isActive: true,
+                package: {
+                    type: 'free',
+                    smsBalance: 10,
+                    expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                },
+                features: {
+                    maxThreads: 10,
+                    maxDuration: 30,
+                    useOtpEndpoints: true,
+                    useCarrierGateways: false,
+                    apiAccess: false
+                },
+                attackStats: { totalSent: 0, totalAttacks: 0, trialUsed: true },
+                createdAt: new Date()
+            };
+            
+            const docRef = await usersRef.add(newUser);
+            currentUserId = docRef.id;
+            currentUserDoc = { id: docRef.id, ...newUser };
+        } else {
+            currentUserId = snap.docs[0].id;
+            currentUserDoc = { id: currentUserId, ...snap.docs[0].data() };
+        }
+        
+        currentUser = currentUserDoc;
+        showDashboard();
+    }
+});
+
+function showDashboard() {
+    document.getElementById('authView').style.display = 'none';
+    document.getElementById('dashView').classList.add('active');
+    
+    updateUI();
+    loadPackages();
+    loadHistory();
+}
+
+function updateUI() {
+    const name = currentUser.username || currentUser.email.split('@')[0];
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userEmail').textContent = currentUser.email;
+    document.getElementById('userPhoto').src = currentUser.photoURL || 
+        'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=00ff88&color=0a0a1a&size=48';
+    
+    const balance = currentUser.package?.smsBalance || 0;
+    document.getElementById('smsBalance').textContent = balance;
+    document.getElementById('balanceDisplay').textContent = balance;
+    document.getElementById('userPackage').textContent = (currentUser.package?.type || 'free').toUpperCase();
+    
+    document.getElementById('threads').max = currentUser.features?.maxThreads || 10;
+    document.getElementById('duration').max = currentUser.features?.maxDuration || 30;
+}
+
+// ================================================================
+// TABS
+// ================================================================
+
+function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (el) el.classList.add('active');
+    if (name === 'history') loadHistory();
+    if (name === 'profile') loadProfile();
+}
+
+// ================================================================
+// ATTACK ENGINE (Firestore Logged)
+// ================================================================
+
+async function launchAttack() {
+    const target = document.getElementById('targetNumber').value.trim();
+    const msg = document.getElementById('message').value.trim();
+    const threads = parseInt(document.getElementById('threads').value) || 10;
+    const dur = parseInt(document.getElementById('duration').value) || 30;
+    const st = document.getElementById('attackStatus');
+    const btn = document.getElementById('launchBtn');
+    
+    if (!target) { st.textContent = '⚠️ Target number required!'; st.style.color = '#ff6b6b'; return; }
+    if (!currentUser.package?.smsBalance || currentUser.package.smsBalance <= 0) {
+        st.textContent = '❌ Insufficient balance! Buy credits in Shop.'; st.style.color = '#ff6b6b'; return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ ATTACKING...';
+    st.textContent = '🚀 Launching...';
+    st.style.color = 'var(--warning)';
+    
+    const attackRef = db.collection('attacks').doc();
+    const attackId = attackRef.id;
+    currentAttackId = attackId;
+    
+    const attackData = {
+        userId: currentUserId,
+        username: currentUser.username || currentUser.email.split('@')[0],
+        firebaseUid: currentUser.firebaseUid,
+        targetNumber: target,
+        message: msg || 'OTP: 123456',
+        threads: threads,
+        duration: dur,
+        smsCost: 0,
+        successfulDeliveries: 0,
+        failedAttempts: 0,
+        totalRequests: 0,
+        status: 'running',
+        startTime: new Date(),
+        logs: []
+    };
+    
+    await attackRef.set(attackData);
+    
+    // Simulate attack in background (Firestore-safe)
+    let sent = 0;
+    let failed = 0;
+    let total = 0;
+    const startTime = Date.now();
+    const endTime = startTime + (dur * 1000);
+    const maxSms = currentUser.package.smsBalance;
+    
+    async function simulateWorker() {
+        while (Date.now() < endTime && sent < maxSms) {
+            const isSuccess = Math.random() > 0.3;
+            if (isSuccess) sent++;
+            else failed++;
+            total++;
+            
+            if (total % 5 === 0) {
+                // Update attack in Firestore
+                await attackRef.update({
+                    successfulDeliveries: sent,
+                    failedAttempts: failed,
+                    totalRequests: total,
+                    smsCost: sent,
+                    logs: firebase.firestore.FieldValue.arrayUnion({
+                        api: ['Twilio', 'TextBelt', 'Instragram', 'WhatsApp', 'Telegram'][Math.floor(Math.random()*5)],
+                        status: isSuccess ? 'success' : 'failed',
+                        timestamp: new Date()
+                    })
+                });
+                
+                // Update user balance
+                const newBalance = Math.max(0, maxSms - sent);
+                await db.collection('users').doc(currentUserId).update({
+                    'package.smsBalance': newBalance,
+                    'attackStats.totalSent': firebase.firestore.FieldValue.increment(1),
+                    'attackStats.totalAttacks': total === 5 ? firebase.firestore.FieldValue.increment(1) : 0
+                });
+                
+                currentUser.package.smsBalance = newBalance;
+                document.getElementById('smsBalance').textContent = newBalance;
+                document.getElementById('balanceDisplay').textContent = newBalance;
+            }
+            
+            await new Promise(r => setTimeout(r, 100 + Math.random() * 200));
+        }
+    }
+    
+    // Run simulation
+    simulateWorker().then(async () => {
+        await attackRef.update({
+            status: sent >= maxSms ? 'completed' : 'completed',
+            successfulDeliveries: sent,
+            failedAttempts: failed,
+            totalRequests: total,
+            smsCost: sent,
+            endTime: new Date()
+        });
+        
+        btn.disabled = false;
+        btn.textContent = '🚀 LAUNCH ATTACK';
+        st.textContent = '✅ Attack completed! Sent: ' + sent + ' SMS';
+        st.style.color = '#51cf66';
+        document.getElementById('liveStats').style.display = 'grid';
+        document.getElementById('statSent').textContent = sent;
+        document.getElementById('statFailed').textContent = failed;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statRate').textContent = (total / (dur || 1)).toFixed(1) + '/s';
+        
+        currentAttackId = null;
+        loadHistory();
+    });
+}
+
+// ================================================================
+// HISTORY
+// ================================================================
+
+async function loadHistory() {
+    try {
+        const snap = await db.collection('attacks')
+            .where('firebaseUid', '==', currentUser.firebaseUid)
+            .orderBy('startTime', 'desc')
+            .limit(50)
+            .get();
+        
+        if (snap.empty) {
+            document.getElementById('historyBody').innerHTML = 
+                '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">No attacks yet</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        snap.forEach(doc => {
+            const a = doc.data();
+            html += `<tr>
+                <td>${a.targetNumber}</td>
+                <td><span class="badge-success">${a.successfulDeliveries || 0}</span></td>
+                <td><span class="badge-danger">${a.failedAttempts || 0}</span></td>
+                <td>${a.smsCost || 0}</td>
+                <td><span class="badge-${a.status}">${a.status}</span></td>
+                <td>${a.startTime?.toDate?.().toLocaleString() || new Date(a.startTime).toLocaleString()}</td>
+            </tr>`;
+        });
+        document.getElementById('historyBody').innerHTML = html;
+    } catch (err) {
+        document.getElementById('historyBody').innerHTML = 
+            '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Error: ' + err.message + '</td></tr>';
+    }
+}
+
+// ================================================================
+// SHOP / PACKAGES
+// ================================================================
+
+async function loadPackages() {
+    try {
+        const snap = await db.collection('packages').orderBy('price', 'asc').get();
+        
+        if (snap.empty) {
+            document.getElementById('packageGrid').innerHTML = 
+                '<div style="grid-column:1/-1;text-align:center;color:var(--dim);padding:40px">No packages available</div>';
+            return;
+        }
+        
+        let html = '';
+        snap.forEach(doc => {
+            const p = doc.data();
+            const isFeatured = p.type === 'premium';
+            const isFree = p.type === 'free';
+            const btnText = isFree ? '✅ Free Trial Active' : '💳 Purchase — $' + p.price;
+            const btnAction = isFree
+                ? 'alert("✅ Free trial active! Balance: ' + (currentUser.package?.smsBalance || 0) + ' SMS")'
+                : 'purchasePackage("' + doc.id + '","' + p.type + '",' + p.smsCount + ',' + p.price + ')';
+            
+            html += `
+                <div class="shop-card ${isFeatured ? 'featured' : ''}">
+                    <h3>${p.name}</h3>
+                    <div class="price">$${p.price}<small>/mo</small></div>
+                    <div class="sms-count">${(p.smsCount || 0).toLocaleString()}</div>
+                    <div style="color:var(--dim);font-size:13px;margin-bottom:12px">SMS Credits</div>
+                    <ul class="features">
+                        <li>${p.maxThreads || 0} Threads</li>
+                        <li>${p.maxDuration || 0}s Duration</li>
+                        <li>${p.features?.otpEndpoints ? '✓' : '✗'} OTP Endpoints</li>
+                        <li>${p.features?.carrierGateways ? '✓' : '✗'} Carrier Gateways</li>
+                    </ul>
+                    <button class="btn-primary" style="margin-top:12px;width:100%;font-size:14px" onclick="${btnAction}">${btnText}</button>
+                </div>`;
+        });
+        document.getElementById('packageGrid').innerHTML = html;
+    } catch (err) {
+        document.getElementById('packageGrid').innerHTML = 
+            '<div style="grid-column:1/-1;text-align:center;color:var(--danger)">Error: ' + err.message + '</div>';
+    }
+}
+
+async function purchasePackage(pkgId, type, smsCount, price) {
+    if (!confirm('Purchase ' + type.toUpperCase() + ' package for $' + price + '?')) return;
+    
+    try {
+        // In production, integrate payment gateway here
+        // For demo, simulate purchase
+        
+        const currentBalance = currentUser.package?.smsBalance || 0;
+        const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        await db.collection('users').doc(currentUserId).update({
+            'package.type': type,
+            'package.smsBalance': currentBalance + smsCount,
+            'package.expiryDate': expiryDate,
+            'package.purchaseDate': new Date(),
+            'features.maxThreads': 50,
+            'features.maxDuration': 120,
+            'features.useCarrierGateways': true,
+            'features.apiAccess': true
+        });
+        
+        currentUser.package.smsBalance = currentBalance + smsCount;
+        currentUser.package.type = type;
+        updateUI();
+        
+        alert('✅ ' + type.toUpperCase() + ' package activated! New balance: ' + (currentBalance + smsCount) + ' SMS');
+        loadPackages();
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+// ================================================================
+// PROFILE
+// ================================================================
+
+function loadProfile() {
+    if (!currentUser) return;
+    
+    const pkg = currentUser.package || {};
+    const stats = currentUser.attackStats || {};
+    const expiry = pkg.expiryDate?.toDate?.() 
+        ? pkg.expiryDate.toDate().toLocaleDateString() 
+        : (pkg.expiryDate ? new Date(pkg.expiryDate).toLocaleDateString() : 'N/A');
+    
+    document.getElementById('profileContent').innerHTML = `
+        <h3>${currentUser.username || currentUser.email.split('@')[0]}</h3>
+        <p><span class="label">Email:</span> <span class="value">${currentUser.email}</span></p>
+        <p><span class="label">Package:</span> <span class="value accent">${(pkg.type || 'free').toUpperCase()}</span></p>
+        <p><span class="label">SMS Balance:</span> <span class="value accent">${pkg.smsBalance || 0}</span></p>
+        <p><span class="label">Expires:</span> <span class="value">${expiry}</span></p>
+        <hr style="border-color:var(--border);margin:16px 0">
+        <p><span class="label">Total Attacks:</span> <span class="value">${stats.totalAttacks || 0}</span></p>
+        <p><span class="label">Total SMS Sent:</span> <span class="value">${stats.totalSent || 0}</span></p>
+        <hr style="border-color:var(--border);margin:16px 0">
+        <p style="font-size:13px;color:var(--dim)">${currentUser.createdAt?.toDate?.() ? 'Member since ' + currentUser.createdAt.toDate().toLocaleDateString() : ''}</p>
+    `;
+}
+
+// ================================================================
+// LOGOUT
+// ================================================================
+
+function logout() {
+    auth.signOut().then(() => {
+        location.reload();
+    });
+}
+</script>
+</body>
+</html>
